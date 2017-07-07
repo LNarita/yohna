@@ -8,7 +8,6 @@ _ps: this was done over a holiday night because of boredom and because I couldn'
 ## TODO
 
 - [ ] tests! tests! tests!
-- [ ] babel because ES6 ¯\\\_(ツ)_/¯
 - [ ] add support for nested ruby texts (ex: `<ruby><ruby>攻<rp>（</rp><rt>こう</rt><rp>）</rp>殻<rp>（</rp><rt>かく</rt><rp>）</rp>機<rp>（</rp><rt>き</rt><rp>）</rp>動<rp>（</rp><rt>どう</rt><rp>）</rp>隊<rp>（</rp><rt>たい</rt><rp>）</rp></ruby><rp>（</rp><rt>Kōkakukidōtai</rt><rp>）</rp></ruby>`)
 - [ ] okurigana detection
 
@@ -56,3 +55,47 @@ Output:
 <p><em>「痛ぇー」</em></p>
 <cite>『人生は入れ子人形』Sound Horizon</cite>
 </blockquote>
+
+## Usage
+
+Browser
+```
+yohna.init({
+    /**
+     * start node for the TreeWalker
+     * @type {node}
+     */
+    root: document.body,
+    /**
+     * node types to exclude from TreeWalker search
+     * @type {Array}
+     */
+    excludeFromSearch: ['SCRIPT', 'STYLE', 'CODE', 'PRE'],
+    /**
+     * delimiters to define start of a word
+     * @type {Array}
+     */
+    wordOpeningDelimiters: ['{', '｛'],
+    /**
+     * delimiters to define end of a word
+     * @type {Array}
+     */
+    wordClosingDelimiters: ['}', '｝'],
+    /**
+     * delimiters to define start of a reading
+     * @type {Array}
+     */
+    readingOpeningDelimiters: ['（', '(', '\u3010'],
+    /**
+     * delimiters to define end of a reading
+     * @type {Array}
+     */
+    readingClosingDelimiters: ['）', ')', '\u3011'],
+    /**
+     * delimiters to define reading units.
+     * eg.: {僕達}(ぼく、たち)
+     * @type {Array}
+     */
+    readingDelimiters: ['.', '、', '・']
+}).parseDocument();
+```

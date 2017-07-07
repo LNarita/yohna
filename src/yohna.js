@@ -44,18 +44,15 @@
             return (str + pad).substring(0, pad.length)
         }
     }
-    const htmlToElement = function(htmlStr) {
+    const strToElement = function(htmlStr) {
         if (htmlStr) {
             let template = document.createElement('TEMPLATE')
             template.innerHTML = htmlStr
             return template.content.childNodes
         }
     }
-    /**/
     const $_ = Object.freeze([])
     const $__ = Object.freeze({})
-    let REGEX_PATTERN = /(?:\{|\｛)([^\}\｝]+)(?:\}|\｝)(?:\（|\(|\u3010)([^\}\｝\u3011]+)(?:\）|\)|\u3011)/g
-    let REGEX_DELIMITERS = /[.、・]/
     const DEFAULT_CONFIGURATION = Object.freeze({
         root: document.body,
         excludeFromSearch: ['SCRIPT', 'STYLE', 'CODE', 'PRE'],
@@ -73,42 +70,6 @@
         }
     })
     const REGEX_JAPANESE = /[\uFF5F-\uFF9F\u30A0-\u30FF\u3041-\u3096]+/g
-
-    const sanitizeConfig = function(configuration) {
-        let safeConfig = {}
-        Object.keys(DEFAULT_CONFIGURATION).forEach(key => {
-            let configValue = undefined
-            if (configuration) {
-                configValue = configuration[key]
-            }
-            if (typeof configValue === typeof DEFAULT_CONFIGURATION[key]) {
-                if (typeof configValue === typeof 'string') {
-                    configValue = configValue.trim()
-                }
-                safeConfig[key] =
-                    configValue != null || configValue !== ''
-                        ? configValue
-                        : DEFAULT_CONFIGURATION[key]
-            } else {
-                safeConfig[key] = DEFAULT_CONFIGURATION[key]
-            }
-        })
-
-        REGEX_PATTERN = new RegExp(
-            buildRegex(
-                safeConfig.wordOpeningDelimiters,
-                safeConfig.wordClosingDelimiters,
-                safeConfig.readingOpeningDelimiters,
-                safeConfig.readingClosingDelimiters
-            ),
-            'g'
-        )
-        REGEX_DELIMITERS = new RegExp(
-            `[${safeConfig.readingDelimiters.join('')}]`
-        )
-        return safeConfig
-    }
-
     const buildRegex = function(
         wordOpeningDelimiters,
         wordClosingDelimiters,
@@ -149,8 +110,48 @@
             ')'
         )
     }
+    const sanitizeConfig = function(configuration) {
+        let safeConfig = {}
+        Object.keys(DEFAULT_CONFIGURATION).forEach(key => {
+            let configValue = undefined
+            if (configuration) {
+                configValue = configuration[key]
+            }
+            if (typeof configValue === typeof DEFAULT_CONFIGURATION[key]) {
+                if (typeof configValue === typeof 'string') {
+                    configValue = configValue.trim()
+                }
+                safeConfig[key] =
+                    configValue != null || configValue !== ''
+                        ? configValue
+                        : DEFAULT_CONFIGURATION[key]
+            } else {
+                safeConfig[key] = DEFAULT_CONFIGURATION[key]
+            }
+        })
 
-    const nodes = function(root, accept, excludeFromSearch) {
+        safeConfig.regexPattern = new RegExp(
+            buildRegex(
+                safeConfig.wordOpeningDelimiters,
+                safeConfig.wordClosingDelimiters,
+                safeConfig.readingOpeningDelimiters,
+                safeConfig.readingClosingDelimiters
+            ),
+            'g'
+        )
+        safeConfig.regexDelimiters = new RegExp(
+            `[${safeConfig.readingDelimiters.join('')}]`
+        )
+        return safeConfig
+    }
+    /**/
+    function Yohna(options) {
+        this.configuration = sanitizeConfig(options)
+    }
+    Yohna.prototype._findTextNodes = function() {
+        let accept = this.configuration.accept
+        let excludeFromSearch = this.configuration.excludeFromSearch
+        let root = this.configuration.root
         let walker = document.createTreeWalker(
             root,
             NodeFilter.SHOW_TEXT,
@@ -172,28 +173,44 @@
         }
         return nodes
     }
-
-    const filterNodes = function(textNodes) {
+    Yohna.prototype._filterTextNodes = function(textNodes) {
         let filteredNodes = []
         if (textNodes) {
             if (Array.isArray(textNodes) && textNodes.length > 0) {
                 filteredNodes = textNodes.filter(node => {
-                    REGEX_PATTERN.lastIndex = 0
-                    return REGEX_PATTERN.test(node.data)
+                    this.configuration.regexPattern.lastIndex = 0
+                    return this.configuration.regexPattern.test(node.data)
                 })
             }
         }
         return filteredNodes
     }
-
-    const rubyfy = function(
-        node,
-        readingDelimiters,
-        enableReadingPerCharacter
-    ) {
-        let elementStrWithRuby = node.data
-        let match
-        while ((match = REGEX_PATTERN.exec(node.data))) {
+    Yohna.prototype._parseNodes = function(nodes) {
+        if (nodes) {
+            if (Array.isArray(nodes) && nodes.length > 0) {
+                nodes.forEach(node => {
+                    this.configuration.regexPattern.lastIndex = 0
+                    let elementStrWithRuby = this.rubyfy(node.data)
+                    let elementWithRuby = strToElement(elementStrWithRuby)
+                    if (
+                        node.previousSibling === null &&
+                        node.nextSibling === null
+                    ) {
+                        node.parentNode.innerHTML = elementStrWithRuby
+                    } else {
+                        Array.from(elementWithRuby).forEach(a => {
+                            node.parentNode.insertBefore(a, node)
+                        })
+                        node.parentNode.removeChild(node)
+                    }
+                })
+            }
+        }
+    }
+    Yohna.prototype.rubyfy = function(txt) {
+        let elementStrWithRuby = txt
+        let match = undefined
+        while ((match = this.configuration.regexPattern.exec(txt))) {
             let word = match[2]
             let reading = match[4]
             let honorific = ''
@@ -204,14 +221,19 @@
                 honorific = match[1]
             }
             let wordArr = word.split('')
-            let readingArr = reading.split(REGEX_DELIMITERS).filter(r => r)
-            if (readingArr.length === 1 && enableReadingPerCharacter) {
+            let readingArr = reading
+                .split(this.configuration.regexDelimiters)
+                .filter(r => r)
+            if (
+                readingArr.length === 1 &&
+                this.configuration.enableReadingPerCharacter
+            ) {
                 readingArr = readingArr
                     .map(w => w.split(''))
                     .reduce((x, y) => x.concat(y), [])
             }
             if (
-                (enableReadingPerCharacter &&
+                (this.configuration.enableReadingPerCharacter &&
                     !REGEX_JAPANESE.test(word) &&
                     !REGEX_JAPANESE.test(reading) &&
                     word.length === reading.length) ||
@@ -239,62 +261,19 @@
                     `${honorific}<ruby>${escapeHtml(
                         word
                     )}<rp>(</rp><rt>${escapeHtml(
-                        reading.replace(REGEX_DELIMITERS, '')
+                        reading.replace(this.configuration.regexDelimiters, '')
                     )}</rt><rp>)</rp></ruby>`
                 )
             }
         }
         return elementStrWithRuby
     }
-
-    const parse = function(
-        nodes,
-        readingDelimiters,
-        enableReadingPerCharacter
-    ) {
-        if (nodes) {
-            if (Array.isArray(nodes) && nodes.length > 0) {
-                nodes.forEach(node => {
-                    REGEX_PATTERN.lastIndex = 0
-                    let elementStrWithRuby = rubyfy(
-                        node,
-                        readingDelimiters,
-                        enableReadingPerCharacter
-                    )
-                    let elementWithRuby = htmlToElement(elementStrWithRuby)
-                    if (
-                        node.previousSibling === null &&
-                        node.nextSibling === null
-                    ) {
-                        node.parentNode.innerHTML = elementStrWithRuby
-                    } else {
-                        Array.from(elementWithRuby).forEach(a => {
-                            node.parentNode.insertBefore(a, node)
-                        })
-                        node.parentNode.removeChild(node)
-                    }
-                })
-            }
-        }
+    Yohna.prototype.parseDocument = function() {
+        let textNodes = this._findTextNodes()
+        textNodes = this._filterTextNodes(textNodes)
+        this._parseNodes(textNodes)
     }
-
-    const start = function(configuration) {
-        configuration = sanitizeConfig(configuration)
-        let textNodes = nodes(
-            configuration.root,
-            configuration.accept,
-            configuration.excludeFromSearch
-        )
-        textNodes = filterNodes(textNodes)
-        parse(
-            textNodes,
-            configuration.readingDelimiters,
-            configuration.enableReadingPerCharacter
-        )
-    }
-
     return {
-        init: start,
-        rubyfy: rubyfy
+        init: c => new Yohna(c)
     }
 })
