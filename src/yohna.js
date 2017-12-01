@@ -11,7 +11,7 @@
     }
 })(this, function() {
     /**
-     * Utils
+     * Some utilities
      */
     const ENTITY_MAP = {
         '&': '&amp;',
@@ -145,13 +145,10 @@
         return safeConfig
     }
     /**/
-    function Yohna(options) {
-        this.configuration = sanitizeConfig(options)
-    }
-    Yohna.prototype._findTextNodes = function() {
-        let accept = this.configuration.accept
-        let excludeFromSearch = this.configuration.excludeFromSearch
-        let root = this.configuration.root
+    const _findTextNodes = config => {
+        let accept = config.accept
+        let excludeFromSearch = config.excludeFromSearch
+        let root = config.root
         let walker = document.createTreeWalker(
             root,
             NodeFilter.SHOW_TEXT,
@@ -173,24 +170,24 @@
         }
         return nodes
     }
-    Yohna.prototype._filterTextNodes = function(textNodes) {
+    const _filterTextNodes = function(config, textNodes) {
         let filteredNodes = []
         if (textNodes) {
             if (Array.isArray(textNodes) && textNodes.length > 0) {
                 filteredNodes = textNodes.filter(node => {
-                    this.configuration.regexPattern.lastIndex = 0
-                    return this.configuration.regexPattern.test(node.data)
+                    config.regexPattern.lastIndex = 0
+                    return config.regexPattern.test(node.data)
                 })
             }
         }
         return filteredNodes
     }
-    Yohna.prototype._parseNodes = function(nodes) {
+    const _parseNodes = (y, nodes) => {
         if (nodes) {
             if (Array.isArray(nodes) && nodes.length > 0) {
                 nodes.forEach(node => {
-                    this.configuration.regexPattern.lastIndex = 0
-                    let elementStrWithRuby = this.rubyfy(node.data)
+                    y.configuration.regexPattern.lastIndex = 0
+                    let elementStrWithRuby = y.rubyfy(node.data)
                     let elementWithRuby = strToElement(elementStrWithRuby)
                     if (
                         node.previousSibling === null &&
@@ -206,6 +203,9 @@
                 })
             }
         }
+    }
+    function Yohna(options) {
+        this.configuration = sanitizeConfig(options)
     }
     Yohna.prototype.rubyfy = function(txt) {
         let elementStrWithRuby = txt
@@ -269,9 +269,9 @@
         return elementStrWithRuby
     }
     Yohna.prototype.parseDocument = function() {
-        let textNodes = this._findTextNodes()
-        textNodes = this._filterTextNodes(textNodes)
-        this._parseNodes(textNodes)
+        let textNodes = _findTextNodes(this.configuration)
+        textNodes = _filterTextNodes(this.configuration, textNodes)
+        _parseNodes(this, textNodes)
     }
     return {
         init: c => new Yohna(c)
