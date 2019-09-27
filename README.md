@@ -1,15 +1,9 @@
 # Yohna
 
-Yohna defines and parses new markup syntax for ruby tags, because I writing HTML with `<ruby>` is quite a pain for me  
+Yohna defines and parses new markup syntax for ruby tags, because writing `<ruby>` without getting lost is quite a pain.  
 Currently being used to add furigana to Japanese creative writing, but it should be language agnostic :)
 
 _ps: this was done over a holiday night because of boredom and because I couldn't find a markdown parser that supported phonetic scripts. That being said, do not expect much_
-
-## TODO
-
-- [ ] tests! tests! tests!
-- [ ] add support for nested ruby texts (ex: `<ruby><ruby>攻<rp>（</rp><rt>こう</rt><rp>）</rp>殻<rp>（</rp><rt>かく</rt><rp>）</rp>機<rp>（</rp><rt>き</rt><rp>）</rp>動<rp>（</rp><rt>どう</rt><rp>）</rp>隊<rp>（</rp><rt>たい</rt><rp>）</rp></ruby><rp>（</rp><rt>Kōkakukidōtai</rt><rp>）</rp></ruby>`)
-- [ ] okurigana detection
 
 ## Examples
 
